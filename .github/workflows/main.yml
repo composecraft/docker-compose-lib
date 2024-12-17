@@ -18,9 +18,8 @@ jobs:
       - name: Build doc
         run: pnpm run doc
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: doc_typedoc
           path: docs/**
   deploy:
     needs: build
@@ -37,9 +36,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v3
-        with:
-          artifact_name: doc_typedoc
+        uses: actions/deploy-pages@v4
   
 
 
