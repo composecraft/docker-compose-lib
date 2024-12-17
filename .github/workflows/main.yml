@@ -20,7 +20,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/**
+          path: docs/
   deploy:
     needs: build
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
