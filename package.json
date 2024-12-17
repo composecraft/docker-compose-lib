@@ -1,0 +1,58 @@
+{
+    "name": "@composecraft/docker-compose-lib",
+    "version": "1.2.7",
+    "description": "A library to help doing things around docker",
+    "main": "./lib/cjs/index.js",
+    "module": "./lib/esm/index.js",
+    "files": [
+        "lib/"
+    ],
+    "scripts": {
+        "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json && tsc -p tsconfig-cjs.json && tsc-alias -p tsconfig-cjs.json",
+        "test": "jest",
+        "test:real": " bash ./test.sh",
+        "test:all": "pnpm run test && pnpm run test:real",
+        "format": "prettier .prettierrc --write *",
+        "format:check": "prettier .prettierrc --check *",
+        "clear": "rm -rf ./lib && rm -fr cache rm -rf testReal/*js",
+        "all": "pnpm run format pnpm run test:all",
+        "doc": "typedoc  --options ./typedoc.json"
+    },
+    "keywords": [
+        "docker",
+        "library",
+        "typescript",
+        "javascript"
+    ],
+    "author": "Lucas Sovre",
+    "license": "Apache-2.0",
+    "devDependencies": {
+        "@eslint/js": "^9.8.0",
+        "@jest/globals": "^29.7.0",
+        "@types/jest": "^29.5.12",
+        "@types/node": "^22.0.0",
+        "@types/uuid": "^10.0.0",
+        "@typescript-eslint/eslint-plugin": "^7.18.0",
+        "@typescript-eslint/parser": "^7.18.0",
+        "eslint": "^9.8.0",
+        "eslint-config-love": "^62.0.0",
+        "eslint-plugin-import": "^2.29.1",
+        "eslint-plugin-n": "^17.10.1",
+        "eslint-plugin-promise": "^7.0.0",
+        "globals": "^15.8.0",
+        "jest": "^29.7.0",
+        "pnpm": "^9.6.0",
+        "prettier": "3.3.3",
+        "ts-jest": "^29.2.3",
+        "ts-loader": "^9.5.1",
+        "ts-node": "^10.9.2",
+        "tsc-alias": "^1.8.10",
+        "typedoc": "^0.27.5",
+        "typescript": "^5.5.4",
+        "typescript-eslint": "^7.18.0",
+        "uuid": "^10.0.0",
+        "webpack": "^5.93.0",
+        "webpack-cli": "^5.1.4",
+        "yaml": "^2.5.0"
+    }
+}
