@@ -1,0 +1,9 @@
+node_modules
+lib
+cache
+testReal/*js
+src/**/*.js
+.env
+.idea
+cov
+docs
