@@ -2,6 +2,8 @@
 
 A TypeScript library for working with Docker Compose configurations, providing strong typing and easy manipulation of Docker Compose data structures.
 
+this lib is behind [composecraft.com](https://composecraft.com)
+
 ## Overview
 
 `compose-craft-lib` is a powerful TypeScript library designed to simplify working with Docker Compose configurations. It offers:
