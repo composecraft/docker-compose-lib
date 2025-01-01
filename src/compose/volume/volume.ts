@@ -19,7 +19,7 @@ class Volume extends Serializable{
     labels?: KeyValue[];
     external: boolean;
 
-    constructor({ name, driver = VolumeDriver.OVERLAY2, driver_opts, labels, external = false }: VolumeConstructor) {
+    constructor({ name, driver = VolumeDriver.LOCAL, driver_opts, labels, external = false }: VolumeConstructor) {
         super();
         this.id = "vol_" + v4();
         this.name = name;

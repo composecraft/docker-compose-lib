@@ -52,7 +52,7 @@ describe("volume constructor", () => {
         expect(volume.id).toBeDefined();
         expect(volume.name).toBe("test volume");
         expect(volume.external).toBe(false);
-        expect(volume.driver).toBe(VolumeDriver.OVERLAY2);
+        expect(volume.driver).toBe(VolumeDriver.LOCAL);
         expect(volume.labels).toBeUndefined();
     });
 
