@@ -173,10 +173,17 @@ export class Translator {
                     let source: string
                     let target:string
                     let protocol:Protocol|undefined
-                    if(port_raw.includes(":")){
-                        source = port_raw.split(":")[0]
-                        target = port_raw.split(":")[1]
-                        protocol = port_raw.split("/")[1] as Protocol|undefined
+                    if (port_raw.includes(":")) {
+                        const [sourcePart, targetPart] = port_raw.split(":");
+                        source = sourcePart;
+
+                        if (targetPart.includes("/")) {
+                            const [targetPort, proto] = targetPart.split("/");
+                            target = targetPort;
+                            protocol = proto as Protocol | undefined;
+                        } else {
+                            target = targetPart;
+                        }
                     }else{
                         source = port_raw
                         target = port_raw

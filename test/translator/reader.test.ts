@@ -8,7 +8,8 @@ import {
     Service,
     Translator,
     Volume,
-    VolumeDriver
+    VolumeDriver,
+    Protocol
 } from "../../src";
 import { expect } from "@jest/globals";
 import * as fs from "node:fs";
@@ -175,6 +176,20 @@ describe("read compose file", () => {
         const specialInput = `{"services":{"app":{"image":"eugenci/papermerge:2.0.0","container_name":"papermerge-app","restart":"unless-stopped","expose":[8000],"ports":["8888:8000"],"depends_on":["db","redis","worker"],"volumes":["\${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/papermerge/media_root:/opt/media"],"environment":["DJANGO_SETTINGS_MODULE=config.settings.production","POSTGRES_USER=dbuser","POSTGRES_PASSWORD=dbpass","POSTGRES_DB=dbname","POSTGRES_HOST=db","POSTGRES_PORT=5432"],"networks":["proxy"]},"db":{"image":"postgres:16-alpine","container_name":"papermerge-db","restart":"unless-stopped","expose":[5432],"volumes":["\${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/papermerge/psql-data:/var/lib/postgresql/data/"],"environment":["POSTGRES_USER=dbuser","POSTGRES_PASSWORD=dbpass","POSTGRES_DB=dbname"],"networks":["proxy"]},"redis":{"image":"redis:6-alpine","container_name":"papermerge-redis","restart":"unless-stopped","expose":[6379],"volumes":["\${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/papermerge/redis-data:/data"],"networks":["proxy"]},"worker":{"image":"eugenci/papermerge-worker:v2.0.0","container_name":"papermerge-worker","restart":"unless-stopped","volumes":["\${DOCKER_VOLUME_STORAGE:-/mnt/docker-volumes}/papermerge/media_root:/opt/media"],"environment":["DJANGO_SETTINGS_MODULE=config.settings.production","POSTGRES_USER=dbuser","POSTGRES_PASSWORD=dbpass","POSTGRES_DB=dbname","POSTGRES_HOST=db","POSTGRES_PORT=5432"],"networks":["proxy"]}},"networks":{"proxy":{"external":true}}}`
         const result = Translator.fromDict(JSON.parse(specialInput))
         expect(result).toBeDefined()
+    })
+
+    //{"services":{"udp-service":{"image":"alpine","ports":["5000:5000/udp"]}}}
+
+    test("port UDP only",()=>{
+        const specialInput = `{"services":{"udp-service":{"image":"alpine","ports":["5001:5000/udp"]}}}`
+        const result = Translator.fromDict(JSON.parse(specialInput))
+        expect(result).toBeDefined()
+        expect((Array.from(result.services)[0] as Service).name).toBe("udp-service")
+        const port = (Array.from(result.services)[0] as Service)?.ports?.[0]
+        expect(port).toBeDefined()
+        expect(port?.containerPort).toBe(5000)
+        expect(port?.hostPort).toBe(5001)
+        expect(port?.protocol).toBe(Protocol.UDP)
     })
 
     test("supabase docker compose",()=>{
