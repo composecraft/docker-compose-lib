@@ -20,6 +20,6 @@ body:
     id: file
     attributes:
       label: file content
-      description: ""
+      description: "yaml file content"
     validations:
       required: true
