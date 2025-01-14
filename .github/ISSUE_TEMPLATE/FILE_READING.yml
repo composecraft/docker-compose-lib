@@ -1,0 +1,25 @@
+name: Error on reading file
+description: Report an issue with the file parsing.
+labels: bug
+body:
+  - type: input
+    attributes:
+      label: Which browser do you use?
+      description: Specify the browser you were using (e.g., Chrome, Firefox, Safari).
+      placeholder: e.g., Chrome 118.0
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: What OS do you use?
+      description: Specify your operating system (e.g., Windows 11, macOS 14, Ubuntu 22.04).
+      placeholder: e.g., Ubuntu 22.04
+    validations:
+      required: true
+  - type: textarea
+    id: file
+    attributes:
+      label: file content
+      description: ""
+    validations:
+      required: true
