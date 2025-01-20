@@ -54,6 +54,7 @@ export class Translator {
             serviceDict.readonly = service.readonly;
             serviceDict.restart = service.restart?.toString();
             serviceDict.working_dir = service.working_dir;
+            serviceDict.network_mode = service.network_mode
 
             //ones linked to other params
             serviceDict.secrets = Array.from(service.secrets).map((sec) => sec.name);
