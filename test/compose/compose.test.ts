@@ -132,4 +132,14 @@ describe("operations on services assignations and dependencies", () => {
         expect(compose1.equal(compose2)).toBeFalsy()
         expect(compose1.equal(compose1)).toBeTruthy()
     });
+
+    test("networkMode", () => {
+        const compose1 = new Compose();
+
+        const service1 = new Service({ name: "serv1", network_mode: "host" });
+
+        compose1.addService(service1);
+
+        expect(service1.network_mode).toBe("host")
+    });
 });

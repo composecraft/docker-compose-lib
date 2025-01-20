@@ -38,6 +38,7 @@ export class Service extends Serializable {
     working_dir?: string;
     depends_on: SuperSet<Readonly<Service>>;
     networks: SuperSet<Readonly<Network>>;
+    network_mode?: string
 
     constructor(init: Partial<Service>) {
         super();
@@ -65,6 +66,7 @@ export class Service extends Serializable {
         this.bindings = init.bindings || new SuperSet();
         this.depends_on = init.depends_on || new SuperSet();
         this.networks = init.networks || new SuperSet();
+        this.network_mode = init.network_mode
         this.check();
     }
 

@@ -198,4 +198,12 @@ describe("read compose file", () => {
         const result = Translator.fromDict(yamlData)
         expect(result).toBeDefined()
     })
+
+    test("network mode",()=>{
+        const specialInput = `{"version":"3.8","services":{"webapp":{"image":"nginx:latest","network_mode":"host","restart":"unless-stopped"},"database":{"image":"postgres:15","environment":{"POSTGRES_PASSWORD":"example","POSTGRES_USER":"user"},"restart":"unless-stopped"}}}`
+        const result = Translator.fromDict(JSON.parse(specialInput))
+        expect(result).toBeDefined()
+        expect((Array.from(result.services)[0] as Service).network_mode).toBe("host")
+        expect((Array.from(result.services)[1] as Service).network_mode).toBeUndefined()
+    })
 });

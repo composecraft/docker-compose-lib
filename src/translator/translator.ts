@@ -7,6 +7,7 @@ import { getSimpleValues, turnObjectInArrayWithName } from "@commons/utils";
 import { AccessType } from "@commons/volumeAccesType";
 import { Env } from "@commons/keyValue";
 import { SuperSet } from "@commons/superSet";
+import { serviceworker } from "globals";
 
 /**
  * This is an implementation of the translator pattern, that allow us to have an instance over {@link Compose} that can smartly know about top level params and deep one without the need of any extra references.
@@ -216,6 +217,7 @@ export class Translator {
                     }
                 })
             }
+            ser.network_mode = service?.network_mode
             result.services.add(ser)
         })
         //envs
