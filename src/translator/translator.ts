@@ -2,11 +2,18 @@
 import { Compose, ComposeVersion } from "@compose/compose";
 import { Network } from "@compose/network";
 import { Binding, Volume } from "@compose/volume";
-import { Service, Image, Build, PortMapping, Protocol } from "@compose/service";
+import { Build, Image, PortMapping, Protocol, Service } from "@compose/service";
 import { getSimpleValues, turnObjectInArrayWithName } from "@commons/utils";
 import { AccessType } from "@commons/volumeAccesType";
 import { Env, KeyValue } from "@commons/keyValue";
 import { SuperSet } from "@commons/superSet";
+
+type VolumeBindingRead = {
+    type: "bind" | "volume";
+    source: string;          // The source path (relative or absolute path on the host machine)
+    target: string;          // The target path inside the container
+    read_only: boolean;      // Boolean to specify if the mount is read-only or not
+};
 
 /**
  * This is an implementation of the translator pattern, that allow us to have an instance over {@link Compose} that can smartly know about top level params and deep one without the need of any extra references.
@@ -206,13 +213,22 @@ export class Translator {
                 })
             }
             if (service?.volumes){
-                service?.volumes?.forEach((vol:string)=>{
-                    if(vol.startsWith("/") || vol.startsWith(".")){
-                        const strippedVol = vol.split(":")
+                service?.volumes?.forEach((vol:string|VolumeBindingRead)=>{
+                    if(typeof(vol) === "string"){
+                        if(vol.startsWith("/") || vol.startsWith(".")){
+                            const strippedVol = vol.split(":")
+                            ser.bindings.add(new Binding({
+                                source: strippedVol[0],
+                                target: strippedVol[1],
+                                mode: strippedVol[2] as AccessType
+                            }))
+                        }
+                    }
+                    if(typeof(vol) === "object"){
                         ser.bindings.add(new Binding({
-                            source: strippedVol[0],
-                            target: strippedVol[1],
-                            mode: strippedVol[2] as AccessType
+                            source: vol.source,
+                            target: vol.target,
+                            mode: vol.read_only ? AccessType.READ_ONLY : AccessType.READ_WRITE
                         }))
                     }
                 })
@@ -261,16 +277,29 @@ export class Translator {
                 })
             }
             if(rawSer.volumes){
-                rawSer.volumes.forEach((vol_String:string)=>{
-                    if(!(vol_String.startsWith(".") || vol_String.startsWith("/"))){
-                        const strippedVol = vol_String.split(":")
-                        const volume = Array.from(result.volumes).find(vol=>vol.name===strippedVol[0])
-                        if(service && volume){
-                            service.bindings.add(new Binding({
-                                source: volume,
-                                target: strippedVol[1],
-                                mode: strippedVol[2] as AccessType
-                            }))
+                rawSer.volumes.forEach((volRaw:string|VolumeBindingRead)=>{
+                    if(typeof(volRaw) === "string"){
+                        if(!(volRaw.startsWith(".") || volRaw.startsWith("/"))){
+                            const strippedVol = volRaw.split(":")
+                            const volume = Array.from(result.volumes).find(vol=>vol.name===strippedVol[0])
+                            if(service && volume){
+                                service.bindings.add(new Binding({
+                                    source: volume,
+                                    target: strippedVol[1],
+                                    mode: strippedVol[2] as AccessType
+                                }))
+                            }
+                        }
+                    }else{
+                        if(volRaw.type === "volume"){
+                            const volume = Array.from(result.volumes).find(vol=>vol.name===volRaw.source)
+                            if(service && volume){
+                                service.bindings.add(new Binding({
+                                    source: volume,
+                                    target: volRaw.target,
+                                    mode: volRaw.read_only ? AccessType.READ_ONLY : AccessType.READ_WRITE
+                                }))
+                            }
                         }
                     }
                 })
