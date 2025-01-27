@@ -1,6 +1,6 @@
 {
     "name": "@composecraft/docker-compose-lib",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "description": "A library to help doing things around docker",
     "main": "./lib/cjs/index.js",
     "module": "./lib/esm/index.js",
