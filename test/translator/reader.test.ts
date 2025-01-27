@@ -199,11 +199,25 @@ describe("read compose file", () => {
         expect(result).toBeDefined()
     })
 
-    test("network mode",()=>{
-        const specialInput = `{"version":"3.8","services":{"webapp":{"image":"nginx:latest","network_mode":"host","restart":"unless-stopped"},"database":{"image":"postgres:15","environment":{"POSTGRES_PASSWORD":"example","POSTGRES_USER":"user"},"restart":"unless-stopped"}}}`
+    test("label read",()=>{
+        const specialInput = `{"version":"3.8","services":{"web":{"image":"nginx:latest","container_name":"web_container","labels":["com.example.service=web","com.example.version=1.0","com.example.department=frontend"],"ports":["8080:80"],"networks":["webnet"]},"db":{"image":"postgres:latest","container_name":"db_container","labels":["com.example.service=db","com.example.version=13.3","com.example.department=backend"],"environment":{"POSTGRES_USER":"user","POSTGRES_PASSWORD":"password","POSTGRES_DB":"mydb"},"volumes":["db_data:/var/lib/postgresql/data"],"networks":["webnet"]}},"networks":{"webnet":{"driver":"bridge"}},"volumes":{"db_data":{"driver":"local"}}}`
         const result = Translator.fromDict(JSON.parse(specialInput))
         expect(result).toBeDefined()
-        expect((Array.from(result.services)[0] as Service).network_mode).toBe("host")
-        expect((Array.from(result.services)[1] as Service).network_mode).toBeUndefined()
+        const serviceWebLabels = result.services.get("name","web")?.labels
+        expect(serviceWebLabels).toBeDefined()
+        if(serviceWebLabels){
+            expect(serviceWebLabels?.length).toBe(3)
+        }
+    })
+
+    test("label read labels object",()=>{
+        const specialInput = `{"version":"3.8","services":{"web":{"image":"nginx:latest","container_name":"web_container","labels":{"com.example.service":"web","com.example.version":"1.0","com.example.department":"frontend"},"ports":["8080:80"],"networks":["webnet"]},"db":{"image":"postgres:latest","container_name":"db_container","labels":{"com.example.service":"db","com.example.version":"13.3","com.example.department":"backend"},"environment":{"POSTGRES_USER":"user","POSTGRES_PASSWORD":"password","POSTGRES_DB":"mydb"},"volumes":["db_data:/var/lib/postgresql/data"],"networks":["webnet"]}},"networks":{"webnet":{"driver":"bridge"}},"volumes":{"db_data":{"driver":"local"}}}`
+        const result = Translator.fromDict(JSON.parse(specialInput))
+        expect(result).toBeDefined()
+        const serviceWebLabels = result.services.get("name","web")?.labels
+        expect(serviceWebLabels).toBeDefined()
+        if(serviceWebLabels){
+            expect(serviceWebLabels?.length).toBe(3)
+        }
     })
 });

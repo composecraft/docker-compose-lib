@@ -5,9 +5,8 @@ import { Binding, Volume } from "@compose/volume";
 import { Service, Image, Build, PortMapping, Protocol } from "@compose/service";
 import { getSimpleValues, turnObjectInArrayWithName } from "@commons/utils";
 import { AccessType } from "@commons/volumeAccesType";
-import { Env } from "@commons/keyValue";
+import { Env, KeyValue } from "@commons/keyValue";
 import { SuperSet } from "@commons/superSet";
-import { serviceworker } from "globals";
 
 /**
  * This is an implementation of the translator pattern, that allow us to have an instance over {@link Compose} that can smartly know about top level params and deep one without the need of any extra references.
@@ -218,12 +217,24 @@ export class Translator {
                     }
                 })
             }
+            //labels
+            if(service?.labels){
+                if(Array.isArray(service?.labels)){
+                    ser.labels = (service.labels as string[]).map(label=>{
+                        const strippedLabel = label.split("=")
+                        return new KeyValue(strippedLabel[0],strippedLabel[1]||"")
+                    }) || []
+                }else{
+                    ser.labels = Object.keys(service.labels).map((key)=>new KeyValue(key,service.labels[key])) || []
+                }
+            }
             ser.network_mode = service?.network_mode
             result.services.add(ser)
         })
         //envs
         Object.keys(input?.services)?.forEach((key:string)=>{
             const service = input?.services[key]
+            //envs
             if(service.environment){
                 if(!Array.isArray(service.environment)){
                     service.environment = Object.keys(service.environment).map((key)=>`${key}=${service.environment[key]}`)
@@ -236,7 +247,6 @@ export class Translator {
                 })
             }
         })
-
         //links
         Object.keys(input?.services)?.forEach((key:string)=>{
             const rawSer = input?.services[key]
