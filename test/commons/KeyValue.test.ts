@@ -13,3 +13,8 @@ test("KeyValue complete", () => {
     expect(keyValue.value).toBe(undefined);
     expect(keyValue.toString()).toBe('network=""');
 });
+
+test("KeyValue prefix", () => {
+    const keyValue: KeyValue = new KeyValue("network","lala","lab_");
+    expect(keyValue.id.substring(0, 4)).toBe("lab_")
+});

@@ -21,10 +21,10 @@ export class KeyValue {
     value?: string;
     id: string;
 
-    constructor(key: string, value?: string) {
+    constructor(key: string, value?: string, prefix?: string) {
         this.key = key;
         this.value = value;
-        this.id = v4();
+        this.id = prefix || "" + v4();
     }
 
     toString() {
