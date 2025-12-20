@@ -238,10 +238,10 @@ export class Translator {
                 if(Array.isArray(service?.labels)){
                     ser.labels = (service.labels as string[]).map(label=>{
                         const strippedLabel = label.split("=")
-                        return new KeyValue(strippedLabel[0],strippedLabel[1]||"")
+                        return new KeyValue(strippedLabel[0],strippedLabel[1]||"","lab_")
                     }) || []
                 }else{
-                    ser.labels = Object.keys(service.labels).map((key)=>new KeyValue(key,service.labels[key])) || []
+                    ser.labels = Object.keys(service.labels).map((key)=>new KeyValue(key,service.labels[key],"lab_")) || []
                 }
             }
             ser.network_mode = service?.network_mode

@@ -218,6 +218,7 @@ describe("read compose file", () => {
         expect(serviceWebLabels).toBeDefined()
         if(serviceWebLabels){
             expect(serviceWebLabels?.length).toBe(3)
+            expect(serviceWebLabels[0].id.substring(0,4)).toBe("lab_")
         }
     })
 
