@@ -17,4 +17,6 @@ test("KeyValue complete", () => {
 test("KeyValue prefix", () => {
     const keyValue: KeyValue = new KeyValue("network","lala","lab_");
     expect(keyValue.id.substring(0, 4)).toBe("lab_")
+    console.log(keyValue.id)
+    expect(keyValue.id.length).toBe(40)
 });
