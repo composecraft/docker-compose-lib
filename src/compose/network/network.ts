@@ -1,5 +1,5 @@
 import { KeyValue } from "@commons/keyValue";
-import { v4 } from "uuid";
+import { randomUUID } from "crypto";
 import { NetworkDriver } from "@compose/network/driver";
 
 export interface NetworkConstructor {
@@ -31,7 +31,7 @@ class Network {
         internal = false,
         labels,
     }: NetworkConstructor) {
-        this.id = "net_" + v4();
+        this.id = "net_" + randomUUID();
         this.name = name;
         this.driver = driver;
         this.driver_opts = driver_opts;

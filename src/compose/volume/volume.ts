@@ -1,4 +1,4 @@
-import { v4 } from "uuid";
+import { randomUUID } from "crypto";
 import { KeyValue } from "@commons/keyValue";
 import { VolumeDriver } from "@compose/volume/driver";
 import { Serializable } from "@commons/serializable";
@@ -21,7 +21,7 @@ class Volume extends Serializable{
 
     constructor({ name, driver = VolumeDriver.LOCAL, driver_opts, labels, external = false }: VolumeConstructor) {
         super();
-        this.id = "vol_" + v4();
+        this.id = "vol_" + randomUUID();
         this.name = name;
         this.driver = driver;
         this.driver_opts = driver_opts;

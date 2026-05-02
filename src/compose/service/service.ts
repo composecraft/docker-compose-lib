@@ -8,7 +8,7 @@ import { Env, KeyValue } from "@commons/keyValue";
 import { RestartPolicyCondition } from "@compose/service/restartPolicy";
 import { Secret } from "@compose/secret";
 import { IllegalArgumentException } from "@compose/errors";
-import { v4 } from "uuid";
+import { randomUUID } from "crypto";
 import { Network } from "@compose/network";
 import { SuperSet } from "@commons/superSet";
 import { Serializable } from "@commons/serializable";
@@ -42,7 +42,7 @@ export class Service extends Serializable {
 
     constructor(init: Partial<Service>) {
         super();
-        this.id = "ser_" + v4();
+        this.id = "ser_" + randomUUID();
         this.name = init.name || "";
         this.image = init.image;
         this.ports = init.ports;

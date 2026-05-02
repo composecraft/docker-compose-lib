@@ -1,4 +1,4 @@
-import { v4 } from "uuid";
+import { randomUUID } from "crypto";
 
 /**
  * Represents a key-value pair with a unique identifier.
@@ -24,7 +24,7 @@ export class KeyValue {
     constructor(key: string, value?: string, prefix?: string) {
         this.key = key;
         this.value = value;
-        this.id = (prefix || "") + v4();
+        this.id = (prefix || "") + randomUUID();
     }
 
     toString() {
@@ -35,13 +35,13 @@ export class KeyValue {
 /**
  * Inherit from {@link KeyValue}, The only difference is the ID generated is formed as :
  * ```typescript
- * this.id = "env_" + v4();
+ * this.id = "env_" + randomUUID();
  * ```
  */
 export class Env extends KeyValue{
 
     constructor(key: string, value?: string) {
         super(key,value);
-        this.id = "env_" + v4();
+        this.id = "env_" + randomUUID();
     }
 }

@@ -1,7 +1,7 @@
 import { Serializable } from "@commons/serializable";
 import { AccessType } from "@commons/volumeAccesType";
 import { Volume } from "@compose/volume/volume";
-import { v4 } from "uuid";
+import { randomUUID } from "crypto";
 
 export enum BindingType {
     LOCAL,
@@ -24,7 +24,7 @@ export class Binding extends Serializable {
         mode?: AccessType;
     }) {
         super();
-        this.id = "bin_" + v4();
+        this.id = "bin_" + randomUUID();
         this.source = source;
         this.target = target;
         this.mode = mode;
