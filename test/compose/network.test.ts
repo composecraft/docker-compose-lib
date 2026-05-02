@@ -21,6 +21,7 @@ describe("initialisation tests", () => {
             driver_opts: [new KeyValue("lala", "lolo")],
             attachable: true,
             external: true,
+            internal: true,
             labels: [new KeyValue("key", "value")],
         });
 
@@ -28,6 +29,24 @@ describe("initialisation tests", () => {
         expect(network.driver_opts?.length).toBe(1);
         expect(network.attachable).toBe(true);
         expect(network.external).toBe(true);
+        expect(network.internal).toBe(true);
         expect(network.labels?.length).toBe(1);
+    });
+
+    test("toDict omits unset defaults", () => {
+        const network = new Network({ name: "minimal" });
+        const dict = network.toDict() as Record<string, unknown>;
+        expect(dict.attachable).toBeUndefined();
+        expect(dict.external).toBeUndefined();
+        expect(dict.internal).toBeUndefined();
+        expect(dict.driver).toBe(NetworkDriver.BRIDGE);
+    });
+
+    test("toDict emits flags when set", () => {
+        const network = new Network({ name: "all", attachable: true, external: true, internal: true });
+        const dict = network.toDict() as Record<string, unknown>;
+        expect(dict.attachable).toBe(true);
+        expect(dict.external).toBe(true);
+        expect(dict.internal).toBe(true);
     });
 });

@@ -199,6 +199,72 @@ describe("read compose file", () => {
         expect(result).toBeDefined()
     })
 
+    test("voting-app docker compose with object-style networks",()=>{
+        const yamlFilePath = path.join(__dirname, 'voting-app.yaml');
+        const yamlData = YAML.parse(fs.readFileSync(yamlFilePath, 'utf8'));
+        const result = Translator.fromDict(yamlData)
+        expect(result).toBeDefined()
+
+        expect(result.name).toBe("voting-app")
+        expect(result.services.size).toBe(5)
+        expect(result.networks.size).toBe(2)
+        expect(result.volumes.size).toBe(1)
+
+        const backNet = Array.from<Network>(result.networks).find(n=>n.name==="back-net")
+        const frontNet = Array.from<Network>(result.networks).find(n=>n.name==="front-net")
+        expect(backNet).toBeDefined()
+        expect(frontNet).toBeDefined()
+
+        const db = result.services.get("name","db") as Service
+        const worker = result.services.get("name","worker") as Service
+        const vote = result.services.get("name","vote") as Service
+
+        const dbNets = Array.from<Network>(db.networks)
+        expect(dbNets.length).toBe(1)
+        expect(dbNets[0].name).toBe("back-net")
+
+        const workerNets = Array.from<Network>(worker.networks).map(n=>n.name).sort()
+        expect(workerNets).toEqual(["back-net","front-net"])
+
+        const voteNets = Array.from<Network>(vote.networks)
+        expect(voteNets.length).toBe(1)
+        expect(voteNets[0].name).toBe("front-net")
+
+        // long-form `{type:"volume", source:"db-data", ...}` must not produce duplicate bindings
+        expect(db.bindings.size).toBe(1)
+        const dbBinding = Array.from<Binding>(db.bindings)[0]
+        expect(dbBinding.source instanceof Volume).toBe(true)
+        if(dbBinding.source instanceof Volume){
+            expect(dbBinding.source.name).toBe("db-data")
+        }
+        expect(dbBinding.target).toBe("/var/lib/postgresql/data")
+    })
+
+    test("env dedup keeps same-key-different-value across services", () => {
+        const specialInput = {
+            services: {
+                a: { image: "alpine", environment: ["SHARED=common", "ONLY_A=alpha"] },
+                b: { image: "alpine", environment: ["SHARED=common", "ONLY_B=beta"] },
+                c: { image: "alpine", environment: ["SHARED=other"] },
+            },
+        }
+        const result = Translator.fromDict(specialInput)
+        const envs = Array.from<Env>(result.envs)
+        // SHARED=common (shared by a+b), ONLY_A=alpha, ONLY_B=beta, SHARED=other → 4 unique
+        expect(envs.length).toBe(4)
+        const sharedCommon = envs.find(e => e.key === "SHARED" && e.value === "common")
+        const sharedOther = envs.find(e => e.key === "SHARED" && e.value === "other")
+        expect(sharedCommon).toBeDefined()
+        expect(sharedOther).toBeDefined()
+
+        const a = result.services.get("name","a") as Service
+        const c = result.services.get("name","c") as Service
+        const aShared = Array.from<Env>(a.environment ?? []).find(e => e.key === "SHARED")
+        const cShared = Array.from<Env>(c.environment ?? []).find(e => e.key === "SHARED")
+        expect(aShared?.value).toBe("common")
+        expect(cShared?.value).toBe("other")
+    })
+
     test("label read",()=>{
         const specialInput = `{"version":"3.8","services":{"web":{"image":"nginx:latest","container_name":"web_container","labels":["com.example.service=web","com.example.version=1.0","com.example.department=frontend"],"ports":["8080:80"],"networks":["webnet"]},"db":{"image":"postgres:latest","container_name":"db_container","labels":["com.example.service=db","com.example.version=13.3","com.example.department=backend"],"environment":{"POSTGRES_USER":"user","POSTGRES_PASSWORD":"password","POSTGRES_DB":"mydb"},"volumes":["db_data:/var/lib/postgresql/data"],"networks":["webnet"]}},"networks":{"webnet":{"driver":"bridge"}},"volumes":{"db_data":{"driver":"local"}}}`
         const result = Translator.fromDict(JSON.parse(specialInput))

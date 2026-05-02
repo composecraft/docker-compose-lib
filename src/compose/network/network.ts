@@ -19,6 +19,7 @@ class Network {
     driver_opts?: KeyValue[];
     attachable: boolean;
     external: boolean;
+    internal: boolean;
     labels?: KeyValue[];
 
     constructor({
@@ -27,6 +28,7 @@ class Network {
         driver_opts,
         attachable = false,
         external = false,
+        internal = false,
         labels,
     }: NetworkConstructor) {
         this.id = "net_" + v4();
@@ -35,6 +37,7 @@ class Network {
         this.driver_opts = driver_opts;
         this.attachable = attachable;
         this.external = external;
+        this.internal = internal;
         this.labels = labels;
     }
 
@@ -42,8 +45,9 @@ class Network {
         return {
             driver: this.driver.toString(),
             driver_opts: this.driver_opts?.map((driv) => driv.toString()),
-            attachable: this.attachable,
-            external: this.external,
+            attachable: this.attachable ? this.attachable : undefined,
+            external: this.external ? this.external : undefined,
+            internal: this.internal ? this.internal : undefined,
             labels: this.labels?.map((lab) => lab.toString()),
         };
     }

@@ -140,7 +140,7 @@ export class Translator {
         if(input?.networks){
             Object.keys(input?.networks)?.forEach((key:string)=>{
                 const network = input?.networks[key]
-                const net = new Network({name:key,...getSimpleValues(network)})
+                const net = new Network({...getSimpleValues(network),name:key})
                 result.networks.add(net)
             })
         }
@@ -148,7 +148,7 @@ export class Translator {
         if(input?.volumes){
             input?.volumes && Object.keys(input?.volumes)?.forEach((key:string)=>{
                 const volume = input?.volumes[key]
-                const vol = new Volume({name:key,...getSimpleValues(volume)})
+                const vol = new Volume({...getSimpleValues(volume),name:key})
                 result.volumes.add(vol)
             })
         }
@@ -224,7 +224,7 @@ export class Translator {
                             }))
                         }
                     }
-                    if(typeof(vol) === "object"){
+                    if(typeof(vol) === "object" && vol.type === "bind"){
                         ser.bindings.add(new Binding({
                             source: vol.source,
                             target: vol.target,
@@ -257,8 +257,10 @@ export class Translator {
                 }
                 (service.environment as string[]).forEach((env)=>{
                     const strippedEnv = env.split("=")
-                    if(!Array.from(result.envs).find((env)=>env.key === strippedEnv[0])){
-                        result.envs.add(new Env(strippedEnv[0],strippedEnv[1] ? strippedEnv[1]: ""))
+                    const envKey = strippedEnv[0]
+                    const envValue = strippedEnv[1] ? strippedEnv[1] : ""
+                    if(!Array.from(result.envs).find((e)=>e.key === envKey && e.value === envValue)){
+                        result.envs.add(new Env(envKey,envValue))
                     }
                 })
             }
@@ -269,7 +271,8 @@ export class Translator {
             const service = Array.from(result.services).find(ser=>ser.name===key)
             if(rawSer.networks){
                 rawSer.networks = turnObjectInArrayWithName(rawSer.networks)
-                rawSer.networks.forEach((net_name:string)=>{
+                rawSer.networks.forEach((net_ref:string | {name:string})=>{
+                    const net_name = typeof net_ref === "string" ? net_ref : net_ref.name
                     const network = Array.from(result.networks).find(net=>net.name===net_name)
                     if(network && service){
                         service.networks.add(network)
@@ -321,7 +324,9 @@ export class Translator {
                 }
                 rawSer.environment.forEach((rawEnv:string)=>{
                     const strippedEnv = rawEnv.split("=")
-                    const env = Array.from(result.envs).find(e=>e.key===strippedEnv[0])
+                    const envKey = strippedEnv[0]
+                    const envValue = strippedEnv[1] ? strippedEnv[1] : ""
+                    const env = Array.from(result.envs).find(e=>e.key===envKey && e.value===envValue)
                     if(env && service){
                         if(service.environment){
                             service.environment.add(env)

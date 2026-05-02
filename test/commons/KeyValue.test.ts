@@ -1,4 +1,4 @@
-import { KeyValue } from "../../";
+import { KeyValue } from "../../src";
 
 test("KeyValue complete", () => {
     const keyValue: KeyValue = new KeyValue("network", "normal");

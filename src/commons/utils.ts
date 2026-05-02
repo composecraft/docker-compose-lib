@@ -62,7 +62,9 @@ export function turnObjectInArrayWithName<T extends InputObject | unknown[]>(
     const result: ResultItem<T[keyof T]>[] = [];
     Object.keys(input).forEach((key) => {
         const value = (input as InputObject)[key];
-        if (typeof value === "object" && value !== null) {
+        if (value === null || value === undefined) {
+            result.push({ name: key } as ResultItem<T[keyof T]>);
+        } else if (typeof value === "object") {
             result.push({
                 name: key,
                 ...value,

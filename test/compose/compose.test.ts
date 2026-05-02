@@ -99,6 +99,39 @@ describe("operations on volumes", () => {
         expect(service.bindings.has(binding)).toBeFalsy();
         expect(compose.volumes.has(volume)).toBeFalsy();
     });
+
+    test("removeVolume keeps bind-mount bindings and other volumes", () => {
+        const compose = new Compose();
+        const service = new Service({ name: "test-service" });
+        compose.addService(service);
+
+        const volA = new Volume({ name: "vol-a" });
+        const volB = new Volume({ name: "vol-b" });
+        const bindingA = new Binding({ source: volA, target: "/data/a" });
+        const bindingB = new Binding({ source: volB, target: "/data/b" });
+        const localBinding = new Binding({ source: "./host-data", target: "/host" });
+
+        compose.addBinding(bindingA, [service]);
+        compose.addBinding(bindingB, [service]);
+        service.bindings.add(localBinding);
+
+        compose.removeVolume(volA);
+
+        expect(service.bindings.has(bindingA)).toBeFalsy();
+        expect(service.bindings.has(bindingB)).toBeTruthy();
+        expect(service.bindings.has(localBinding)).toBeTruthy();
+        expect(compose.volumes.has(volA)).toBeFalsy();
+        expect(compose.volumes.has(volB)).toBeTruthy();
+    });
+});
+
+describe("compose copy", () => {
+    test("shallowCopy preserves name", () => {
+        const compose = new Compose({ name: "my-compose", version: 3.8 });
+        const copy = compose.shallowCopy();
+        expect(copy.name).toBe("my-compose");
+        expect(copy.version).toBe(3.8);
+    });
 });
 
 describe("operations on services assignations and dependencies", () => {

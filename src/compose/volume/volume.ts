@@ -38,7 +38,7 @@ class Volume extends Serializable{
             driver: this.driver.toString(),
             driver_opts: this.driver_opts?.map((dr) => dr.toString()),
             labels: this.labels?.map((lab) => lab.toString()),
-            external: this.external,
+            external: this.external ? this.external : undefined,
         };
     }
 }

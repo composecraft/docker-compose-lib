@@ -1,0 +1,52 @@
+name: voting-app
+services:
+  db:
+    environment:
+      POSTGRES_PASSWORD: postgres
+    image: postgres:15-alpine
+    labels:
+      fr.composerun.image.public: "true"
+    networks:
+      back-net: null
+    volumes:
+      - source: db-data
+        target: /var/lib/postgresql/data
+        type: volume
+        volume: {}
+  redis:
+    image: redis:alpine
+    labels:
+      fr.composerun.image.public: "true"
+    networks:
+      front-net: null
+  result:
+    image: dockersamples/examplevotingapp_result
+    labels:
+      fr.composerun.image.public: "true"
+    networks:
+      back-net: null
+    ports:
+      - 5001:80/tcp
+  vote:
+    image: dockersamples/examplevotingapp_vote
+    labels:
+      fr.composerun.image.public: "true"
+    networks:
+      front-net: null
+    ports:
+      - 5000:80/tcp
+  worker:
+    image: dockersamples/examplevotingapp_worker
+    labels:
+      fr.composerun.image.public: "true"
+    networks:
+      back-net: null
+      front-net: null
+networks:
+  back-net:
+    name: voting-app_back-net
+  front-net:
+    name: voting-app_front-net
+volumes:
+  db-data:
+    name: voting-app_db-data

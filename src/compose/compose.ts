@@ -39,6 +39,7 @@ export class Compose extends Serializable {
 
     shallowCopy(): Compose {
         const compose = new Compose({});
+        compose.name = this.name;
         compose.version = this.version;
         compose.services = new SuperSet(Array.from(this.services));
         compose.networks = new SuperSet(Array.from(this.networks));
@@ -83,7 +84,7 @@ export class Compose extends Serializable {
     removeVolume(volume: Volume) {
         this.services.forEach((serv) => {
             serv.bindings.forEach((bin) => {
-                if (!(bin.source instanceof Volume) || volume.name === bin.source?.name) {
+                if (bin.source instanceof Volume && bin.source.name === volume.name) {
                     serv.bindings.delete(bin);
                 }
             });
