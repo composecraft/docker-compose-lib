@@ -265,6 +265,19 @@ export class Translator {
                 })
             }
         })
+        // Look up a network in the global registry by name, creating it on
+        // demand so that services referencing networks not declared at the
+        // top level (and the implicit `default` network) still resolve.
+        // Mirrors docker compose's behaviour of auto-creating any referenced
+        // network with default settings.
+        const ensureNetwork = (name: string): Network => {
+            let net = Array.from(result.networks).find(n => n.name === name)
+            if (!net) {
+                net = new Network({name})
+                result.networks.add(net)
+            }
+            return net
+        }
         //links
         Object.keys(input?.services)?.forEach((key:string)=>{
             const rawSer = input?.services[key]
@@ -273,11 +286,15 @@ export class Translator {
                 rawSer.networks = turnObjectInArrayWithName(rawSer.networks)
                 rawSer.networks.forEach((net_ref:string | {name:string})=>{
                     const net_name = typeof net_ref === "string" ? net_ref : net_ref.name
-                    const network = Array.from(result.networks).find(net=>net.name===net_name)
-                    if(network && service){
+                    const network = ensureNetwork(net_name)
+                    if(service){
                         service.networks.add(network)
                     }
                 })
+            } else if (service && !service.network_mode) {
+                // docker compose default: a service with no `networks:` and no
+                // `network_mode` is attached to the implicit `default` network.
+                service.networks.add(ensureNetwork("default"))
             }
             if(rawSer.volumes){
                 rawSer.volumes.forEach((volRaw:string|VolumeBindingRead)=>{

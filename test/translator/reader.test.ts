@@ -288,6 +288,67 @@ describe("read compose file", () => {
         }
     })
 
+    test("auto-registers networks referenced by a service but not declared at top level",()=>{
+        const input = {
+            services: {
+                web: { image: "nginx", networks: ["proxy"] },
+            },
+        }
+        const result = Translator.fromDict(input)
+        expect(result.networks.size).toBe(1)
+        const proxy = Array.from<Network>(result.networks).find(n=>n.name==="proxy")
+        expect(proxy).toBeDefined()
+        const web = result.services.get("name","web") as Service
+        expect(Array.from<Network>(web.networks).map(n=>n.name)).toEqual(["proxy"])
+    })
+
+    test("mix of declared and implicit networks coexist",()=>{
+        const input = {
+            services: {
+                a: { image: "alpine", networks: ["declared","implicit"] },
+                b: { image: "alpine", networks: ["implicit"] },
+            },
+            networks: { declared: { driver: "bridge" } },
+        }
+        const result = Translator.fromDict(input)
+        expect(result.networks.size).toBe(2)
+        expect(Array.from<Network>(result.networks).map(n=>n.name).sort())
+            .toEqual(["declared","implicit"])
+        const a = result.services.get("name","a") as Service
+        expect(Array.from<Network>(a.networks).map(n=>n.name).sort())
+            .toEqual(["declared","implicit"])
+        const b = result.services.get("name","b") as Service
+        expect(Array.from<Network>(b.networks).map(n=>n.name)).toEqual(["implicit"])
+    })
+
+    test("object-style network entry whose key isn't at top level is auto-registered",()=>{
+        const input = {
+            services: {
+                web: { image: "nginx", networks: { "ad-hoc": null } },
+            },
+        }
+        const result = Translator.fromDict(input)
+        expect(Array.from<Network>(result.networks).map(n=>n.name)).toEqual(["ad-hoc"])
+        const web = result.services.get("name","web") as Service
+        expect(Array.from<Network>(web.networks).map(n=>n.name)).toEqual(["ad-hoc"])
+    })
+
+    test("service without `networks` is attached to implicit default network",()=>{
+        const input = { services: { web: { image: "nginx" } } }
+        const result = Translator.fromDict(input)
+        const web = result.services.get("name","web") as Service
+        expect(Array.from<Network>(web.networks).map(n=>n.name)).toEqual(["default"])
+        const def = Array.from<Network>(result.networks).find(n=>n.name==="default")
+        expect(def).toBeDefined()
+    })
+
+    test("service with network_mode is NOT attached to default",()=>{
+        const input = { services: { web: { image: "nginx", network_mode: "host" } } }
+        const result = Translator.fromDict(input)
+        const web = result.services.get("name","web") as Service
+        expect(web.networks.size).toBe(0)
+    })
+
     test("fix issue #3",()=>{
         const specialInput = `{"networks":{"default":{"name":"rxresume-network"},"tk-proxy":{"name":"tk-proxy","external":true}},"services":{"postgres":{"container_name":"rxresume-postgres","env_file":[".env"],"environment":{"POSTGRES_DB":"postgres","POSTGRES_PASSWORD":"\${DB_PASSWORD}","POSTGRES_USER":"postgres"},"healthcheck":{"test":["CMD-SHELL","pg_isready -U postgres -d postgres"],"interval":"10s","timeout":"5s","retries":5},"image":"postgres:16-alpine","restart":"unless-stopped","volumes":[{"type":"bind","source":"./container_data/postgres/data","target":"/var/lib/postgresql/data","read_only":false}]},"minio":{"command":"server --address \\":9000\\" --console-address \\":9001\\" /data","container_name":"rxresume-minio","env_file":[".env"],"environment":{"MINIO_ROOT_PASSWORD":"\${STORAGE_PASSWORD}","MINIO_ROOT_USER":"minioadmin"},"image":"minio/minio","labels":{"traefik.enable":true,"traefik.http.routers.rxresume-storage.entrypoints":"https","traefik.http.routers.rxresume-storage.rule":"Host(\`rxresume-storage.cf.domain.tld\`)","traefik.http.routers.rxresume-storage.service":"rxresume-storage","traefik.http.routers.rxresume-storage.tls":true,"traefik.http.services.rxresume-storage.loadbalancer.server.port":9000},"networks":["default","tk-proxy"],"restart":"unless-stopped","volumes":[{"type":"bind","source":"./container_data/minio/data","target":"/data","read_only":false}]},"chrome":{"container_name":"rxresume-chrome","environment":{"CONCURRENT":10,"EXIT_ON_HEALTH_FAILURE":true,"PRE_REQUEST_HEALTH_CHECK":true,"TIMEOUT":60000,"TOKEN":"\${CHROME_TOKEN}"},"extra_hosts":["host.docker.internal:host-gateway"],"image":"ghcr.io/browserless/chromium:v2.18.0","restart":"unless-stopped"},"rxresume":{"container_name":"rxresume","depends_on":["postgres","minio","chrome"],"environment":{"ACCESS_TOKEN_SECRET":"\${ACCESS_TOKEN_SECRET}","CHROME_TOKEN":"\${CHROME_TOKEN}","CHROME_URL":"ws://rxresume-chrome:3000","DATABASE_URL":"postgresql://postgres:\${DB_PASSWORD}@rxresume-postgres:5432/postgres","NODE_ENV":"production","PORT":3005,"PUBLIC_URL":"https://rxresume.cf.domain.tld","REFRESH_TOKEN_SECRET":"\${REFRESH_TOKEN_SECRET}","STORAGE_ACCESS_KEY":"minioadmin","STORAGE_BUCKET":"default","STORAGE_ENDPOINT":"rxresume-minio","STORAGE_PORT":9000,"STORAGE_REGION":"us-east-1","STORAGE_SECRET_KEY":"\${STORAGE_PASSWORD}","STORAGE_SKIP_BUCKET_CHECK":false,"STORAGE_URL":"https://rxresume-storage.cf.domain.tld/default","STORAGE_USE_SSL":false},"image":"amruthpillai/reactive-resume:latest","labels":{"traefik.enable":true,"traefik.http.routers.rxresume.entrypoints":"https","traefik.http.routers.rxresume.rule":"Host(\`rxresume.cf.domain.tld\`)","traefik.http.routers.rxresume.service":"rxresume","traefik.http.routers.rxresume.tls":true,"traefik.http.services.rxresume.loadbalancer.server.port":3005},"networks":["default","tk-proxy"],"restart":"unless-stopped"}}}`
         const result = Translator.fromDict(JSON.parse(specialInput))
