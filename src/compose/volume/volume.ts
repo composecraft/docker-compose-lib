@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "@commons/randomUuid";
 import { KeyValue } from "@commons/keyValue";
 import { VolumeDriver } from "@compose/volume/driver";
 import { Serializable } from "@commons/serializable";

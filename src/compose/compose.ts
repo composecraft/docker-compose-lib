@@ -6,8 +6,6 @@ import { SuperSet } from "@commons/superSet";
 import { Serializable } from "@commons/serializable";
 import { Env } from "@commons/keyValue";
 
-import * as crypto from 'crypto';
-
 /**
  * All allowed versions of a docker-compose.yaml file.
  */
@@ -125,8 +123,16 @@ export class Compose extends Serializable {
         this.envs.delete(env);
     }
 
+    /**
+     * Returns a stable string representation usable as an equality key.
+     *
+     * Previously this used a Node `crypto.createHash('sha256')` digest, but
+     * that broke browser bundles (`crypto` is Node-only, and the Web Crypto
+     * `subtle.digest` is async). The serialized JSON is sufficient for the
+     * `equal()` use case, which only needs deterministic comparison.
+     */
     public hash():string{
-        return crypto.createHash('sha256').update(JSON.stringify(this)).digest('hex');
+        return JSON.stringify(this);
     }
 
     public equal(other:Compose):boolean{

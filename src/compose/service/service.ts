@@ -8,7 +8,7 @@ import { Env, KeyValue } from "@commons/keyValue";
 import { RestartPolicyCondition } from "@compose/service/restartPolicy";
 import { Secret } from "@compose/secret";
 import { IllegalArgumentException } from "@compose/errors";
-import { randomUUID } from "crypto";
+import { randomUUID } from "@commons/randomUuid";
 import { Network } from "@compose/network";
 import { SuperSet } from "@commons/superSet";
 import { Serializable } from "@commons/serializable";

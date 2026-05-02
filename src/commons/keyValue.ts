@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "@commons/randomUuid";
 
 /**
  * Represents a key-value pair with a unique identifier.

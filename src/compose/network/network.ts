@@ -1,5 +1,5 @@
 import { KeyValue } from "@commons/keyValue";
-import { randomUUID } from "crypto";
+import { randomUUID } from "@commons/randomUuid";
 import { NetworkDriver } from "@compose/network/driver";
 
 export interface NetworkConstructor {

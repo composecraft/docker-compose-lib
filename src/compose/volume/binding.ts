@@ -1,7 +1,7 @@
 import { Serializable } from "@commons/serializable";
 import { AccessType } from "@commons/volumeAccesType";
 import { Volume } from "@compose/volume/volume";
-import { randomUUID } from "crypto";
+import { randomUUID } from "@commons/randomUuid";
 
 export enum BindingType {
     LOCAL,
