@@ -25,5 +25,7 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm run build
+      - name: Upgrade npm for Trusted Publishing
+        run: npm install -g npm@latest
       - name: Publish
         run: npm publish
