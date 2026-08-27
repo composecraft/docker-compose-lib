@@ -1,4 +1,6 @@
 import { IllegalArgumentException } from "@compose/errors";
+import { randomUUID } from "@commons/randomUuid";
+import { Serializable } from "@commons/serializable";
 
 interface SecretOptions {
     name: string;
@@ -7,13 +9,16 @@ interface SecretOptions {
     environment?: string;
 }
 
-export class Secret {
+export class Secret extends Serializable {
+    id: string;
     name: string;
     external?: boolean;
     file?: string;
     environment?: string;
 
     constructor(options: SecretOptions) {
+        super();
+        this.id = "sec_" + randomUUID();
         this.name = options.name;
         this.external = options.external;
         this.file = options.file;
@@ -38,7 +43,7 @@ export class Secret {
         }
     }
 
-    toJSON(){
-        return this.toDict()
+    equals(other: Secret): boolean {
+        return this.name === other.name;
     }
 }

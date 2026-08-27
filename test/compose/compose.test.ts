@@ -162,8 +162,31 @@ describe("operations on services assignations and dependencies", () => {
         compose2.addService(service3);
         compose2.addService(service4);
 
-        expect(compose1.equal(compose2)).toBeFalsy()
+        expect(compose1.equal(compose2)).toBeTruthy()
         expect(compose1.equal(compose1)).toBeTruthy()
+    });
+
+    test("equality is structural, not identity", () => {
+        const build = (imageName: string) => {
+            const compose = new Compose({ name: "app", version: 3.8 });
+            compose.addService(new Service({ name: "web", image: new Image({ name: imageName }) }));
+            return compose;
+        };
+
+        expect(build("nginx").equal(build("nginx"))).toBeTruthy()
+        expect(build("nginx").equal(build("caddy"))).toBeFalsy()
+    });
+
+    test("equality ignores insertion order", () => {
+        const compose1 = new Compose();
+        compose1.addService(new Service({ name: "a" }));
+        compose1.addService(new Service({ name: "b" }));
+
+        const compose2 = new Compose();
+        compose2.addService(new Service({ name: "b" }));
+        compose2.addService(new Service({ name: "a" }));
+
+        expect(compose1.equal(compose2)).toBeTruthy()
     });
 
     test("networkMode", () => {

@@ -10,7 +10,7 @@ import {
     Volume,
 } from "../lib/cjs";
 import { stringify } from "yaml";
-import { v4 } from "uuid";
+import { randomUUID } from "node:crypto";
 import { promises as fs } from "fs";
 import { join } from "path";
 
@@ -59,7 +59,7 @@ const translator = new Translator(compose);
 const yaml = stringify(translator.toDict())
 
 const cacheDir = "./cache";
-const filename = `${v4()}.yaml`;
+const filename = `${randomUUID()}.yaml`;
 
 fs.mkdir(cacheDir, { recursive: true }) // Ensure the directory exists
     .then(() => fs.writeFile(join(cacheDir, filename), yaml))

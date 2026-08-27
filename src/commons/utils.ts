@@ -16,6 +16,76 @@ export function getSimpleValues(input:any):Record<string, string | number | bool
     return result
 }
 
+/**
+ * Splits `KEY=VALUE` on its **first** `=` only, so values containing `=`
+ * (base64 payloads, connection strings, JWTs) survive intact.
+ */
+export function splitKeyValue(input: string): [string, string] {
+    const index = input.indexOf("=");
+    if (index === -1) {
+        return [input, ""];
+    }
+    return [input.slice(0, index), input.slice(index + 1)];
+}
+
+/**
+ * Splits on `separator` while ignoring separators nested inside a `${...}`
+ * interpolation, so `${VAR:-/default/path}:/target:ro` splits into 3 parts.
+ */
+export function splitOutsideInterpolation(input: string, separator: string): string[] {
+    const parts: string[] = [];
+    let current = "";
+    let depth = 0;
+    for (let i = 0; i < input.length; i++) {
+        const char = input[i];
+        if (char === "$" && input[i + 1] === "{") {
+            depth++;
+            current += "${";
+            i++;
+            continue;
+        }
+        if (char === "}" && depth > 0) {
+            depth--;
+            current += char;
+            continue;
+        }
+        if (char === separator && depth === 0) {
+            parts.push(current);
+            current = "";
+            continue;
+        }
+        current += char;
+    }
+    parts.push(current);
+    return parts;
+}
+
+/**
+ * Normalises the `KEY=VALUE[]` / `{KEY: VALUE}` duality docker compose accepts
+ * for `environment`, `labels` and `build.args`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function toKeyValuePairs(input: any): Array<[string, string]> {
+    if (!input) {
+        return [];
+    }
+    if (Array.isArray(input)) {
+        return input.map((entry) => splitKeyValue(String(entry)));
+    }
+    return Object.keys(input).map((key) => [key, input[key] === null || input[key] === undefined ? "" : String(input[key])]);
+}
+
+/**
+ * Normalises a value docker compose accepts as either a scalar or a list.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function toStringArray(input: any): string[] | undefined {
+    if (input === undefined || input === null) {
+        return undefined;
+    }
+    return (Array.isArray(input) ? input : [input]).map((entry) => String(entry));
+}
+
 type InputObject = Record<string, Record<string, unknown>>;
 type ResultItem<T> = T & { name: string };
 

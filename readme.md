@@ -65,6 +65,19 @@ const translator = new Translator(compose);
 const yamlConfig = stringify(translator.toDict());
 ```
 
+### Reading an existing compose file
+
+```typescript
+import { Translator } from "@composecraft/docker-compose-lib"
+import { parse, stringify } from "yaml";
+
+const compose = Translator.fromDict(parse(readFileSync("docker-compose.yaml", "utf8")));
+
+compose.services.get("name", "web")?.ports?.push(new PortMapping({ hostPort: 8443, containerPort: 443 }));
+
+const updated = stringify(new Translator(compose).toDict());
+```
+
 ## API Documentation
 
 For detailed API documentation, please visit the [official documentation](https://composecraft.github.io/docker-compose-lib).
@@ -81,7 +94,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the Apache License 2.0. See [`LICENSE`](./LICENSE) for more information.
 
 ## Contact
 

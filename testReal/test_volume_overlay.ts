@@ -2,7 +2,7 @@ import { Binding, Compose, Image, PortMapping, Service, Translator, Volume } fro
 import { stringify } from "yaml";
 import { promises as fs } from "fs";
 import { join } from "path";
-import { v4 } from "uuid";
+import { randomUUID } from "node:crypto";
 
 const compose = new Compose({name:"test-real"});
 const service = new Service({
@@ -20,7 +20,7 @@ const translator = new Translator(compose);
 const yaml = stringify(translator.toDict());
 
 const cacheDir = "./cache";
-const filename = `${v4()}.yaml`;
+const filename = `${randomUUID()}.yaml`;
 
 fs.mkdir(cacheDir, { recursive: true }) // Ensure the directory exists
     .then(() => fs.writeFile(join(cacheDir, filename), yaml))

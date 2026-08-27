@@ -66,7 +66,8 @@ describe("read compose file", () => {
         expect(nginx).toBeDefined()
         expect(nginx?.name).toBe("web")
         expect(nginx.image).toStrictEqual(new Image({name: "nginx", tag:"latest"}))
-        expect(nginx?.command).toStrictEqual(['/bin/bash', '-c', '"envsubst', '<', '/tmp/nginx.conf', '>', '/etc/nginx/conf.d/default.conf', '&&', 'nginx', '-g', "'daemon", `off;'"`])
+        // shell form is preserved verbatim: splitting it on spaces would corrupt the quoting
+        expect(nginx?.command).toBe(`/bin/bash -c "envsubst < /tmp/nginx.conf > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"`)
         expect(Array.from<Binding>(nginx.bindings)[0].source).toBe("./nginx/nginx.conf")
         expect(Array.from<Binding>(nginx.bindings)[0].target).toBe("/tmp/nginx.conf")
         expect(Array.from<Binding>(nginx.bindings)[0].mode).toBe(AccessType.READ_ONLY)
