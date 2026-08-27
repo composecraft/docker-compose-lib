@@ -1,19 +1,79 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Compose, ComposeVersion } from "@compose/compose";
-import { Network } from "@compose/network";
-import { Binding, Volume } from "@compose/volume";
-import { Build, Image, PortMapping, Protocol, Service } from "@compose/service";
-import { getSimpleValues, turnObjectInArrayWithName } from "@commons/utils";
+import { Compose, toComposeVersion } from "@compose/compose";
+import { Network, NetworkDriver } from "@compose/network";
+import { Binding, isNamedVolumeReference, Volume, VolumeDriver } from "@compose/volume";
+import {
+    blkioConfigFromDict,
+    blkioConfigToDict,
+    Build,
+    Deploy,
+    HealthCheck,
+    Image,
+    PortMapping,
+    PullPolicy,
+    Service,
+    toRestartPolicyCondition,
+} from "@compose/service";
+import { Secret } from "@compose/secret";
+import { getSimpleValues, toKeyValuePairs, toStringArray, turnObjectInArrayWithName } from "@commons/utils";
 import { AccessType } from "@commons/volumeAccesType";
 import { Env, KeyValue } from "@commons/keyValue";
 import { SuperSet } from "@commons/superSet";
 
 type VolumeBindingRead = {
     type: "bind" | "volume";
-    source: string;          // The source path (relative or absolute path on the host machine)
-    target: string;          // The target path inside the container
-    read_only: boolean;      // Boolean to specify if the mount is read-only or not
+    source: string;
+    target: string;
+    read_only?: boolean;
 };
+
+function toEnum<T extends Record<string, string>>(enumeration: T, value: unknown): T[keyof T] | undefined {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+    return (Object.values(enumeration) as string[]).includes(value) ? (value as T[keyof T]) : undefined;
+}
+
+function toKeyValues(raw: unknown, prefix: string): KeyValue[] | undefined {
+    const pairs = toKeyValuePairs(raw);
+    return pairs.length > 0 ? pairs.map(([key, value]) => new KeyValue(key, value, prefix)) : undefined;
+}
+
+/** `["a", {source: "b"}]` → `["a", "b"]`, the two spellings compose accepts for secrets/configs refs. */
+function toReferenceNames(raw: unknown): string[] {
+    if (!Array.isArray(raw)) {
+        return [];
+    }
+    return raw
+        .map((entry) => (typeof entry === "string" ? entry : entry?.source))
+        .filter((name): name is string => typeof name === "string");
+}
+
+function isBlank(value: unknown): boolean {
+    if (value === undefined || value === null) {
+        return true;
+    }
+    if (Array.isArray(value)) {
+        return value.length === 0;
+    }
+    if (typeof value === "object") {
+        return Object.keys(value).length === 0;
+    }
+    return false;
+}
+
+/** Recursively strips unset entries so nested blocks never surface as `placement: {}`. */
+function dropBlanks(input: Record<string, any>): Record<string, any> {
+    const result: Record<string, any> = {};
+    Object.keys(input).forEach((key) => {
+        const value = input[key];
+        const pruned = value !== null && typeof value === "object" && !Array.isArray(value) ? dropBlanks(value) : value;
+        if (!isBlank(pruned)) {
+            result[key] = pruned;
+        }
+    });
+    return result;
+}
 
 /**
  * This is an implementation of the translator pattern, that allow us to have an instance over {@link Compose} that can smartly know about top level params and deep one without the need of any extra references.
@@ -33,78 +93,67 @@ export class Translator {
         this.compose = compose;
     }
 
+    private serviceToDict(service: Service): object {
+        const dict: Record<string, any> = {
+            image: service.image?.toString(),
+            build: service.build?.toDict(),
+            container_name: service.container_name,
+            ports: service.ports?.map((port) => port.toString()),
+            expose: service.expose,
+            attach: service.attach,
+            blkio_config: service.blkio_config ? blkioConfigToDict(service.blkio_config) : undefined,
+            command: service.command,
+            configs: service.configs,
+            deploy: service.deploy?.toDict(),
+            dns: service.dns,
+            entrypoint: service.entrypoint,
+            env_file: service.env_file,
+            environment: service.environment?.map((env) => env.toString()),
+            extra_hosts: service.extra_hosts,
+            healthcheck: service.healthcheck?.toDict(),
+            hostname: service.hostname,
+            labels: service.labels?.map((lab) => lab.toString()),
+            privileged: service.privileged ? service.privileged : undefined,
+            pull_policy: service.pull_policy?.toString(),
+            read_only: service.read_only,
+            restart: service.restart?.toString(),
+            stop_signal: service.stop_signal,
+            working_dir: service.working_dir,
+            network_mode: service.network_mode,
+            secrets: Array.from(service.secrets).map((sec) => sec.name),
+            depends_on: Array.from(service.depends_on).map((dep) => dep.name),
+            networks: Array.from(service.networks).map((net) => net.name),
+            volumes: Array.from(service.bindings).map((binding) => binding.toString()),
+        };
+        return dropBlanks(dict);
+    }
+
     toDict(): object {
         const result: any = {};
         result.name = this.compose?.name ?? undefined;
-        //top domain compose
         result.version = this.compose?.version?.toString() ?? undefined;
-        //services
+
         result.services = {};
         this.compose?.services.forEach((service) => {
-            const serviceDict: any = {};
-            serviceDict.image = service.image?.toString();
-            serviceDict.ports = service.ports?.map((port) => port.toString());
-            serviceDict.attach = service.attach;
-            serviceDict.build = service.build?.toDict();
-            serviceDict.command = service.command;
-            serviceDict.configs = service.configs;
-            serviceDict.deploy = service.deploy?.toDict();
-            serviceDict.dns = service.dns;
-            serviceDict.entrypoint = service.entrypoint;
-            serviceDict.environment = service.environment?.map((env) => env.toString());
-            serviceDict.healthcheck = service.healthcheck?.toDict();
-            serviceDict.hostname = service.hostname;
-            serviceDict.labels = service.labels?.map((lab) => lab.toString());
-            serviceDict.privileged = service.privileged ? service.privileged : undefined;
-            serviceDict.pull_policy = service.pull_policy?.toString();
-            serviceDict.readonly = service.readonly;
-            serviceDict.restart = service.restart?.toString();
-            serviceDict.working_dir = service.working_dir;
-            serviceDict.network_mode = service.network_mode
-
-            //ones linked to other params
-            serviceDict.secrets = Array.from(service.secrets).map((sec) => sec.name);
-            serviceDict.depends_on = Array.from(service.depends_on).map((dep) => dep.name);
-            serviceDict.networks = Array.from(service.networks).map((net) => net.name);
-            if (service.bindings.size > 0) {
-                serviceDict.volumes = [];
-            }
-            service.bindings.forEach((binding) => {
-                serviceDict.volumes.push(binding?.toString());
-            });
-
-            //clean the result
-            if (serviceDict.depends_on.length === 0) {
-                serviceDict.depends_on = undefined;
-            }
-            if (serviceDict.secrets.length === 0) {
-                serviceDict.secrets = undefined;
-            }
-            if (serviceDict.networks.length === 0) {
-                serviceDict.networks = undefined;
-            }
-            //finally append to result
-            result.services[service.name] = serviceDict;
+            result.services[service.name] = this.serviceToDict(service);
         });
-        //networks
+
         result.networks = {};
         this.compose?.networks.forEach((network) => {
-            result.networks[network.name] = network.toDict();
-        });
-        result.volumes = {};
-        //volumes
-        this.compose?.volumes.forEach((volume) => {
-            if (!volume.isSimple()) {
-                result.volumes[volume.name] = volume.toDict();
-            }
-        });
-        //secrets
-        result.secrets = {};
-        this.compose?.secrets.forEach((secret) => {
-            result.secrets[secret.name] = secret.toDict();
+            result.networks[network.name] = dropBlanks(network.toDict() as Record<string, any>);
         });
 
-        //clean output
+        result.volumes = {};
+        this.compose?.volumes.forEach((volume) => {
+            // a named volume must still be declared even when it carries no options
+            result.volumes[volume.name] = volume.isSimple() ? null : dropBlanks(volume.toDict() as Record<string, any>);
+        });
+
+        result.secrets = {};
+        this.compose?.secrets.forEach((secret) => {
+            result.secrets[secret.name] = dropBlanks(secret.toDict() as Record<string, any>);
+        });
+
         if (Object.keys(result.networks).length === 0) {
             result.networks = undefined;
         }
@@ -129,232 +178,200 @@ export class Translator {
      * const compose_as_Compose: Compose = Translator.fromDict(compose)
      * ```
      */
-    public static fromDict(input:any):Compose{
-        const result = new Compose()
-        result.name = input?.name
-        result.version = Number(input?.version) > 0 ? Number(input?.version) as ComposeVersion : undefined
-        if(!input.services){
-            throw new Error("The docker compose file do not have any services")
+    public static fromDict(input: any): Compose {
+        const result = new Compose();
+        result.name = input?.name;
+        result.version = toComposeVersion(input?.version);
+        if (!input?.services) {
+            throw new Error("The docker compose file do not have any services");
         }
-        //networks
-        if(input?.networks){
-            Object.keys(input?.networks)?.forEach((key:string)=>{
-                const network = input?.networks[key]
-                const net = new Network({...getSimpleValues(network),name:key})
-                result.networks.add(net)
-            })
-        }
-        //volumes
-        if(input?.volumes){
-            input?.volumes && Object.keys(input?.volumes)?.forEach((key:string)=>{
-                const volume = input?.volumes[key]
-                const vol = new Volume({...getSimpleValues(volume),name:key})
-                result.volumes.add(vol)
-            })
-        }
-        //services
-        Object.keys(input?.services)?.forEach((key:string)=>{
-            const service = input?.services[key]
-            const ser = new Service({name:key})
-            if (service?.image){
-                const strippedImage = (service?.image as string).split(':')
-                ser.image = new Image({name: strippedImage[0], tag: strippedImage[1] ? strippedImage[1] : "latest"})
-            }
-            if(service?.build){
-                ser.build = typeof service.build === "string"
-                    ? service.build = new Build({context: service.build})
-                    : Build.fromDict(service?.build)
-            }
-            if (service?.command) {
-                ser.command = Array.isArray(service.command)
-                    ? service.command
-                    : (service.command as string).split(" ");
-            }
-            if (service?.entrypoint) {
-                ser.entrypoint = Array.isArray(service.entrypoint)
-                    ? service.entrypoint
-                    : (service.entrypoint as string).split(" ");
-            }
-            if (service?.ports) {
-                service?.ports.forEach((port_raw:string|number)=>{
-                    port_raw = port_raw.toString()
-                    let source: string
-                    let target:string
-                    let protocol:Protocol|undefined
-                    if (port_raw.includes(":")) {
-                        const [sourcePart, targetPart] = port_raw.split(":");
-                        source = sourcePart;
 
-                        if (targetPart.includes("/")) {
-                            const [targetPort, proto] = targetPart.split("/");
-                            target = targetPort;
-                            protocol = proto as Protocol | undefined;
-                        } else {
-                            target = targetPart;
-                        }
-                    }else{
-                        source = port_raw
-                        target = port_raw
-                        protocol= undefined
-                    }
-                    if(ser.ports){
-                        ser.ports.push(new PortMapping({
-                            hostPort: Number(source),
-                            containerPort: Number(target),
-                            protocol: protocol
-                        }))
-                    }else{
-                        ser.ports = [new PortMapping({
-                            hostPort: Number(source),
-                            containerPort: Number(target),
-                            protocol: protocol as Protocol
-                        })]
-                    }
-                })
-            }
-            if (service?.volumes){
-                service?.volumes?.forEach((vol:string|VolumeBindingRead)=>{
-                    if(typeof(vol) === "string"){
-                        if(vol.startsWith("/") || vol.startsWith(".")){
-                            const strippedVol = vol.split(":")
-                            ser.bindings.add(new Binding({
-                                source: strippedVol[0],
-                                target: strippedVol[1],
-                                mode: strippedVol[2] as AccessType
-                            }))
-                        }
-                    }
-                    if(typeof(vol) === "object" && vol.type === "bind"){
-                        ser.bindings.add(new Binding({
-                            source: vol.source,
-                            target: vol.target,
-                            mode: vol.read_only ? AccessType.READ_ONLY : AccessType.READ_WRITE
-                        }))
-                    }
-                })
-            }
-            //labels
-            if(service?.labels){
-                if(Array.isArray(service?.labels)){
-                    ser.labels = (service.labels as string[]).map(label=>{
-                        const strippedLabel = label.split("=")
-                        return new KeyValue(strippedLabel[0],strippedLabel[1]||"","lab_")
-                    }) || []
-                }else{
-                    ser.labels = Object.keys(service.labels).map((key)=>new KeyValue(key,service.labels[key],"lab_")) || []
-                }
-            }
-            ser.network_mode = service?.network_mode
-            result.services.add(ser)
-        })
-        //envs
-        Object.keys(input?.services)?.forEach((key:string)=>{
-            const service = input?.services[key]
-            //envs
-            if(service.environment){
-                if(!Array.isArray(service.environment)){
-                    service.environment = Object.keys(service.environment).map((key)=>`${key}=${service.environment[key]}`)
-                }
-                (service.environment as string[]).forEach((env)=>{
-                    const strippedEnv = env.split("=")
-                    const envKey = strippedEnv[0]
-                    const envValue = strippedEnv[1] ? strippedEnv[1] : ""
-                    if(!Array.from(result.envs).find((e)=>e.key === envKey && e.value === envValue)){
-                        result.envs.add(new Env(envKey,envValue))
-                    }
-                })
-            }
-        })
-        // Look up a network in the global registry by name, creating it on
-        // demand so that services referencing networks not declared at the
-        // top level (and the implicit `default` network) still resolve.
-        // Mirrors docker compose's behaviour of auto-creating any referenced
-        // network with default settings.
-        const ensureNetwork = (name: string): Network => {
-            let net = Array.from(result.networks).find(n => n.name === name)
-            if (!net) {
-                net = new Network({name})
-                result.networks.add(net)
-            }
-            return net
+        if (input?.networks) {
+            Object.keys(input.networks).forEach((key: string) => {
+                const network = input.networks[key];
+                const simple = getSimpleValues(network);
+                result.networks.add(
+                    new Network({
+                        name: key,
+                        driver: toEnum(NetworkDriver, network?.driver),
+                        driver_opts: toKeyValues(network?.driver_opts, "dro_"),
+                        labels: toKeyValues(network?.labels, "lab_"),
+                        attachable: simple.attachable as boolean | undefined,
+                        external: simple.external as boolean | undefined,
+                        internal: simple.internal as boolean | undefined,
+                    }),
+                );
+            });
         }
-        //links
-        Object.keys(input?.services)?.forEach((key:string)=>{
-            const rawSer = input?.services[key]
-            const service = Array.from(result.services).find(ser=>ser.name===key)
-            if(rawSer.networks){
-                rawSer.networks = turnObjectInArrayWithName(rawSer.networks)
-                rawSer.networks.forEach((net_ref:string | {name:string})=>{
-                    const net_name = typeof net_ref === "string" ? net_ref : net_ref.name
-                    const network = ensureNetwork(net_name)
-                    if(service){
-                        service.networks.add(network)
-                    }
-                })
-            } else if (service && !service.network_mode) {
-                // docker compose default: a service with no `networks:` and no
-                // `network_mode` is attached to the implicit `default` network.
-                service.networks.add(ensureNetwork("default"))
+
+        if (input?.volumes) {
+            Object.keys(input.volumes).forEach((key: string) => {
+                const volume = input.volumes[key];
+                result.volumes.add(
+                    new Volume({
+                        name: key,
+                        driver: toEnum(VolumeDriver, volume?.driver),
+                        driver_opts: toKeyValues(volume?.driver_opts, "dro_"),
+                        labels: toKeyValues(volume?.labels, "lab_"),
+                        external: getSimpleValues(volume).external as boolean | undefined,
+                    }),
+                );
+            });
+        }
+
+        if (input?.secrets) {
+            Object.keys(input.secrets).forEach((key: string) => {
+                const secret = input.secrets[key];
+                result.secrets.add(
+                    new Secret({
+                        name: key,
+                        external: secret?.external === true ? true : undefined,
+                        file: typeof secret?.file === "string" ? secret.file : undefined,
+                        environment: typeof secret?.environment === "string" ? secret.environment : undefined,
+                    }),
+                );
+            });
+        }
+
+        // referenced-but-undeclared networks/volumes/secrets are registered on demand
+        // rather than dropped, mirroring how docker compose auto-creates them
+        const ensure = <T extends { name: string }>(set: SuperSet<T>, name: string, create: () => T): T => {
+            let found = Array.from(set).find((item) => item.name === name);
+            if (!found) {
+                found = create();
+                set.add(found);
             }
-            if(rawSer.volumes){
-                rawSer.volumes.forEach((volRaw:string|VolumeBindingRead)=>{
-                    if(typeof(volRaw) === "string"){
-                        if(!(volRaw.startsWith(".") || volRaw.startsWith("/"))){
-                            const strippedVol = volRaw.split(":")
-                            const volume = Array.from(result.volumes).find(vol=>vol.name===strippedVol[0])
-                            if(service && volume){
-                                service.bindings.add(new Binding({
-                                    source: volume,
-                                    target: strippedVol[1],
-                                    mode: strippedVol[2] as AccessType
-                                }))
-                            }
-                        }
-                    }else{
-                        if(volRaw.type === "volume"){
-                            const volume = Array.from(result.volumes).find(vol=>vol.name===volRaw.source)
-                            if(service && volume){
-                                service.bindings.add(new Binding({
-                                    source: volume,
-                                    target: volRaw.target,
-                                    mode: volRaw.read_only ? AccessType.READ_ONLY : AccessType.READ_WRITE
-                                }))
-                            }
-                        }
-                    }
-                })
+            return found;
+        };
+        const ensureNetwork = (name: string) => ensure(result.networks, name, () => new Network({ name }));
+        const ensureVolume = (name: string) => ensure(result.volumes, name, () => new Volume({ name }));
+        const ensureSecret = (name: string) => ensure(result.secrets, name, () => new Secret({ name }));
+
+        Object.keys(input.services).forEach((key: string) => {
+            const raw = input.services[key];
+            const service = new Service({ name: key });
+
+            if (raw?.image) {
+                service.image = Image.fromString(raw.image);
             }
-            if(rawSer.depends_on){
-                if(!Array.isArray(rawSer.depends_on)){
-                    rawSer.depends_on = Object.keys(rawSer.depends_on).map((key)=>key)
+            if (raw?.build) {
+                service.build = Build.fromDict(raw.build);
+            }
+            // shell form must stay a string: splitting it on spaces corrupts quoting
+            service.command = Array.isArray(raw?.command) ? raw.command.map(String) : raw?.command;
+            service.entrypoint = Array.isArray(raw?.entrypoint) ? raw.entrypoint.map(String) : raw?.entrypoint;
+            service.container_name = raw?.container_name;
+            service.hostname = raw?.hostname;
+            service.working_dir = raw?.working_dir;
+            service.stop_signal = raw?.stop_signal;
+            service.network_mode = raw?.network_mode;
+            service.attach = typeof raw?.attach === "boolean" ? raw.attach : undefined;
+            service.privileged = raw?.privileged === true;
+            service.read_only = typeof raw?.read_only === "boolean" ? raw.read_only : undefined;
+            service.restart = toRestartPolicyCondition(raw?.restart);
+            service.pull_policy = toEnum(PullPolicy, raw?.pull_policy);
+            service.dns = toStringArray(raw?.dns);
+            service.env_file = toStringArray(raw?.env_file);
+            service.expose = toStringArray(raw?.expose);
+            service.extra_hosts = toStringArray(raw?.extra_hosts);
+            service.deploy = Deploy.fromDict(raw?.deploy);
+            service.healthcheck = HealthCheck.fromDict(raw?.healthcheck);
+            service.blkio_config = blkioConfigFromDict(raw?.blkio_config);
+            service.labels = toKeyValues(raw?.labels, "lab_");
+
+            const configs = toReferenceNames(raw?.configs);
+            if (configs.length > 0) {
+                service.configs = configs;
+            }
+            toReferenceNames(raw?.secrets).forEach((name) => service.secrets.add(ensureSecret(name)));
+
+            if (raw?.ports) {
+                const ports = (Array.isArray(raw.ports) ? raw.ports : [raw.ports])
+                    .map((port: string | number) => PortMapping.fromString(port))
+                    .filter((port: PortMapping | undefined): port is PortMapping => port !== undefined);
+                if (ports.length > 0) {
+                    service.ports = ports;
                 }
-                rawSer.depends_on.forEach((ser_name:string)=>{
-                    const serviceToAdd = Array.from(result.services).find(ser=>ser.name===ser_name)
-                    if(serviceToAdd && service){
-                        service.depends_on.add(serviceToAdd)
-                    }
-                })
             }
-            if(rawSer.environment){
-                if(!Array.isArray(rawSer.environment)){
-                    rawSer.environment = Object.keys(rawSer.environment).map((key)=>`${key}=${rawSer.environment[key]}`)
-                }
-                rawSer.environment.forEach((rawEnv:string)=>{
-                    const strippedEnv = rawEnv.split("=")
-                    const envKey = strippedEnv[0]
-                    const envValue = strippedEnv[1] ? strippedEnv[1] : ""
-                    const env = Array.from(result.envs).find(e=>e.key===envKey && e.value===envValue)
-                    if(env && service){
-                        if(service.environment){
-                            service.environment.add(env)
-                        }else{
-                            service.environment = new SuperSet<Readonly<Env>>()
-                            service.environment.add(env)
+
+            if (Array.isArray(raw?.volumes)) {
+                raw.volumes.forEach((entry: string | VolumeBindingRead) => {
+                    if (typeof entry === "string") {
+                        const binding = Binding.fromString(entry);
+                        if (!binding) {
+                            return;
                         }
+                        if (typeof binding.source === "string" && isNamedVolumeReference(binding.source)) {
+                            binding.source = ensureVolume(binding.source);
+                        }
+                        service.bindings.add(binding);
+                        return;
                     }
-                })
+                    if (!entry?.target) {
+                        return;
+                    }
+                    const mode = entry.read_only ? AccessType.READ_ONLY : AccessType.READ_WRITE;
+                    service.bindings.add(
+                        new Binding({
+                            source: entry.type === "volume" ? ensureVolume(entry.source) : entry.source,
+                            target: entry.target,
+                            mode,
+                        }),
+                    );
+                });
             }
-        })
-        return result
+
+            result.services.add(service);
+        });
+
+        // envs are global and deduplicated by key+value, then shared by reference
+        Object.keys(input.services).forEach((key: string) => {
+            toKeyValuePairs(input.services[key]?.environment).forEach(([envKey, envValue]) => {
+                if (!Array.from(result.envs).find((env) => env.key === envKey && env.value === envValue)) {
+                    result.envs.add(new Env(envKey, envValue));
+                }
+            });
+        });
+
+        Object.keys(input.services).forEach((key: string) => {
+            const raw = input.services[key];
+            const service = Array.from(result.services).find((item) => item.name === key);
+            if (!service) {
+                return;
+            }
+
+            if (raw?.networks) {
+                turnObjectInArrayWithName(raw.networks).forEach((reference: string | { name: string }) => {
+                    const name = typeof reference === "string" ? reference : reference.name;
+                    service.networks.add(ensureNetwork(name));
+                });
+            } else if (!service.network_mode) {
+                // docker compose default: no `networks:` and no `network_mode` means the implicit default network
+                service.networks.add(ensureNetwork("default"));
+            }
+
+            if (raw?.depends_on) {
+                const dependencies = Array.isArray(raw.depends_on) ? raw.depends_on : Object.keys(raw.depends_on);
+                dependencies.forEach((name: string) => {
+                    const dependency = Array.from(result.services).find((item) => item.name === name);
+                    if (dependency) {
+                        service.depends_on.add(dependency);
+                    }
+                });
+            }
+
+            toKeyValuePairs(raw?.environment).forEach(([envKey, envValue]) => {
+                const env = Array.from(result.envs).find((item) => item.key === envKey && item.value === envValue);
+                if (!env) {
+                    return;
+                }
+                if (!service.environment) {
+                    service.environment = new SuperSet<Readonly<Env>>();
+                }
+                service.environment.add(env);
+            });
+        });
+
+        return result;
     }
 }

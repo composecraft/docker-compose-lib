@@ -29,8 +29,14 @@ class Volume extends Serializable{
         this.external = external;
     }
 
+    /** True when the volume carries nothing but docker's defaults, so `name:` alone describes it. */
     isSimple(): boolean {
-        return !(this.driver || this.driver_opts || this.labels || this.external);
+        return (
+            this.driver === VolumeDriver.LOCAL &&
+            !this.driver_opts?.length &&
+            !this.labels?.length &&
+            !this.external
+        );
     }
 
     toDict(): object {

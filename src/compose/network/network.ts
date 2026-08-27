@@ -1,6 +1,7 @@
 import { KeyValue } from "@commons/keyValue";
 import { randomUUID } from "@commons/randomUuid";
 import { NetworkDriver } from "@compose/network/driver";
+import { Serializable } from "@commons/serializable";
 
 export interface NetworkConstructor {
     name: string;
@@ -12,7 +13,7 @@ export interface NetworkConstructor {
     labels?: KeyValue[];
 }
 
-class Network {
+class Network extends Serializable {
     id: string;
     name: string;
     driver: NetworkDriver;
@@ -31,6 +32,7 @@ class Network {
         internal = false,
         labels,
     }: NetworkConstructor) {
+        super();
         this.id = "net_" + randomUUID();
         this.name = name;
         this.driver = driver;
@@ -54,10 +56,6 @@ class Network {
 
     equals(other: Network): boolean {
         return this.name === other.name;
-    }
-
-    toJSON(){
-        return this.toDict()
     }
 }
 

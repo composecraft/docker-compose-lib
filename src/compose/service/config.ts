@@ -3,6 +3,7 @@ import { Delay } from "@commons/units";
 export enum FailureAction {
     PAUSE = "pause",
     CONTINUE = "continue",
+    ROLLBACK = "rollback",
 }
 
 export enum Order {
@@ -11,7 +12,7 @@ export enum Order {
 }
 
 interface RollbackConfigConstructor {
-    parallelism: number;
+    parallelism?: number;
     delay?: Delay;
     failure_action?: FailureAction;
     monitor?: Delay;
@@ -20,7 +21,7 @@ interface RollbackConfigConstructor {
 }
 
 export class RollbackConfig {
-    parallelism: number;
+    parallelism?: number;
     delay?: Delay;
     failure_action?: FailureAction;
     monitor?: Delay;
@@ -47,9 +48,40 @@ export class RollbackConfig {
         };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    protected static parse(input: any): RollbackConfigConstructor | undefined {
+        if (!input || typeof input !== "object") {
+            return undefined;
+        }
+        const failureActions = Object.values(FailureAction) as string[];
+        const orders = Object.values(Order) as string[];
+        return {
+            parallelism: typeof input.parallelism === "number" ? input.parallelism : undefined,
+            delay: Delay.fromString(input.delay),
+            failure_action: failureActions.includes(input.failure_action)
+                ? (input.failure_action as FailureAction)
+                : undefined,
+            monitor: Delay.fromString(input.monitor),
+            max_failure_ratio: typeof input.max_failure_ratio === "number" ? input.max_failure_ratio : undefined,
+            order: orders.includes(input.order) ? (input.order as Order) : undefined,
+        };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static fromDict(input: any): RollbackConfig | undefined {
+        const options = RollbackConfig.parse(input);
+        return options ? new RollbackConfig(options) : undefined;
+    }
+
     toJSON(){
         return this.toDict()
     }
 }
 
-export class UpdateConfig extends RollbackConfig {}
+export class UpdateConfig extends RollbackConfig {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static fromDict(input: any): UpdateConfig | undefined {
+        const options = RollbackConfig.parse(input);
+        return options ? new UpdateConfig(options) : undefined;
+    }
+}

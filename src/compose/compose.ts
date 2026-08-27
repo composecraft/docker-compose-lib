@@ -9,7 +9,66 @@ import { Env } from "@commons/keyValue";
 /**
  * All allowed versions of a docker-compose.yaml file.
  */
-export type ComposeVersion = 3.8 | 3.7 | 3.6 | 3.5 | 3.4 | 3.3 | 3.2 | 3.1 | 3.0 | 2.4 | 2.3 | 2.2 | 2.1 | 2.0;
+export type ComposeVersion = 3.9 | 3.8 | 3.7 | 3.6 | 3.5 | 3.4 | 3.3 | 3.2 | 3.1 | 3.0 | 2.4 | 2.3 | 2.2 | 2.1 | 2.0;
+
+const COMPOSE_VERSIONS: ComposeVersion[] = [3.9, 3.8, 3.7, 3.6, 3.5, 3.4, 3.3, 3.2, 3.1, 3.0, 2.4, 2.3, 2.2, 2.1, 2.0];
+
+const VERSION_BY_SPELLING = new Map<string, ComposeVersion>(
+    COMPOSE_VERSIONS.flatMap((version) => [
+        [version.toFixed(1), version] as [string, ComposeVersion],
+        [String(version), version] as [string, ComposeVersion],
+    ]),
+);
+
+/**
+ * Coerces a raw `version:` value, rejecting anything outside {@link ComposeVersion}.
+ *
+ * Matching is done on the spelling, not on `Number()`: `"3.10"` is not a valid
+ * compose version and must not silently become `3.1`.
+ */
+export function toComposeVersion(input: unknown): ComposeVersion | undefined {
+    if (input === undefined || input === null) {
+        return undefined;
+    }
+    return VERSION_BY_SPELLING.get(String(input).trim());
+}
+
+/** Instance fields that carry no meaning for structural comparison. */
+const VOLATILE_KEYS = new Set(["id"]);
+
+function normalize(value: unknown, seen: Set<object> = new Set()): unknown {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (typeof value !== "object") {
+        return value;
+    }
+    if (seen.has(value)) {
+        return "[circular]";
+    }
+    const nested = new Set(seen).add(value);
+    const serializable = value as { toJSON?: () => unknown };
+    if (typeof serializable.toJSON === "function") {
+        return normalize(serializable.toJSON(), nested);
+    }
+    if (Array.isArray(value)) {
+        const items = value.map((item) => normalize(item, nested));
+        const allObjects = items.every((item) => item !== null && typeof item === "object");
+        // set-derived collections carry no meaningful order, unlike command/dns/ports
+        return allObjects ? items.map((item) => JSON.stringify(item)).sort().map((item) => JSON.parse(item)) : items;
+    }
+    const result: Record<string, unknown> = {};
+    Object.keys(value)
+        .filter((key) => !VOLATILE_KEYS.has(key))
+        .sort()
+        .forEach((key) => {
+            const entry = (value as Record<string, unknown>)[key];
+            if (entry !== undefined) {
+                result[key] = normalize(entry, nested);
+            }
+        });
+    return result;
+}
 
 /**
  * The main class of this package.
@@ -75,8 +134,8 @@ export class Compose extends Serializable {
         to.forEach((service) => service.bindings.add(binding));
     }
 
-    removeBinding(binding: Binding, from: Service) {
-        from.bindings.delete(binding);
+    removeBinding(binding: Binding, from: Service | Service[]) {
+        (Array.isArray(from) ? from : [from]).forEach((service) => service.bindings.delete(binding));
     }
 
     removeVolume(volume: Volume) {
@@ -124,15 +183,15 @@ export class Compose extends Serializable {
     }
 
     /**
-     * Returns a stable string representation usable as an equality key.
+     * Stable, structural string representation usable as an equality key.
      *
-     * Previously this used a Node `crypto.createHash('sha256')` digest, but
-     * that broke browser bundles (`crypto` is Node-only, and the Web Crypto
-     * `subtle.digest` is async). The serialized JSON is sufficient for the
-     * `equal()` use case, which only needs deterministic comparison.
+     * Object keys are sorted, generated `id`s are dropped and set-derived
+     * collections are order-normalised, so two independently built but
+     * structurally identical compositions hash the same. A plain
+     * `JSON.stringify` does not: it leaks random UUIDs and insertion order.
      */
     public hash():string{
-        return JSON.stringify(this);
+        return JSON.stringify(normalize(this));
     }
 
     public equal(other:Compose):boolean{
