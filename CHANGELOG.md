@@ -108,7 +108,8 @@ Deprecated but still present: `RestartPolicyCondition.UNLESS_TOPPED` (use
   `--latest` targets the topmost documented version.
 - The docs workflow no longer re-runs the test suite that `ci` already covers,
   and every workflow now declares least-privilege permissions and a concurrency
-  group.
+  group. All of them run on Node 24, and the release pins its npm major rather
+  than tracking `npm@latest`, which had outrun the runner's Node.
 - `test.sh` now fails the build when a generated file is invalid (it previously
   always exited 0), uses `docker compose` v2 and portable colours.
 - Added `testReal/test_roundtrip_fixtures.ts`, which runs the bundled
