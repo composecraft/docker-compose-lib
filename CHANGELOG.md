@@ -95,8 +95,20 @@ Deprecated but still present: `RestartPolicyCondition.UNLESS_TOPPED` (use
   `typecheck` and `verify`.
 - Removed the stale legacy `.eslintrc` and six unused eslint dependencies.
 - Added a `ci` workflow running lint, typecheck, tests, build and the real-world
-  docker compose validation on every pull request; the publish workflow now gates
-  on lint and typecheck too.
+  docker compose validation on every pull request. A second job fails any pull
+  request that touches `src/` without updating this file, unless it carries the
+  `no-changelog` label.
+- The publish workflow now refuses to release when the tag does not match
+  `package.json`, or when this file has no section for that version. It runs the
+  full verification suite, then opens a GitHub release whose notes are the
+  changelog section for the published version. It only triggers on `v*` tags,
+  matching the tags actually in use.
+- Added `scripts/changelog.mjs`, which extracts and validates a changelog
+  section. `pnpm run changelog [version]` prints the notes that would ship;
+  `--latest` targets the topmost documented version.
+- The docs workflow no longer re-runs the test suite that `ci` already covers,
+  and every workflow now declares least-privilege permissions and a concurrency
+  group.
 - `test.sh` now fails the build when a generated file is invalid (it previously
   always exited 0), uses `docker compose` v2 and portable colours.
 - Added `testReal/test_roundtrip_fixtures.ts`, which runs the bundled

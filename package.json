@@ -37,15 +37,16 @@
         "build": "pnpm run clean && tsc -p tsconfig.json && tsc-alias -p tsconfig.json --resolve-full-paths && tsc -p tsconfig-cjs.json && tsc-alias -p tsconfig-cjs.json && pnpm run build:module-type",
         "build:module-type": "node -e \"require('fs').writeFileSync('lib/esm/package.json','{\\\"type\\\":\\\"module\\\"}\\n');require('fs').writeFileSync('lib/cjs/package.json','{\\\"type\\\":\\\"commonjs\\\"}\\n')\"",
         "typecheck": "tsc -p tsconfig.json --noEmit",
-        "lint": "eslint src test",
-        "lint:fix": "eslint src test --fix",
+        "lint": "eslint src test scripts",
+        "lint:fix": "eslint src test scripts --fix",
         "test": "jest",
         "test:real": "bash ./test.sh",
         "test:all": "pnpm run test && pnpm run test:real",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "verify": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build",
-        "doc": "typedoc --options ./typedoc.json"
+        "doc": "typedoc --options ./typedoc.json",
+        "changelog": "node scripts/changelog.mjs"
     },
     "keywords": [
         "docker",
