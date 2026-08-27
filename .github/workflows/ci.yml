@@ -1,23 +1,21 @@
-name: Publish Package to npmjs
+name: ci
 on:
   push:
-    tags:
-      - '*'
+    branches:
+      - main
+  pull_request:
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -29,7 +27,5 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm run build
-      - name: Upgrade npm for Trusted Publishing
-        run: npm install -g npm@latest
-      - name: Publish
-        run: npm publish
+      - name: Real-world compose validation
+        run: pnpm run test:real
